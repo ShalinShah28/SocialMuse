@@ -1,0 +1,5 @@
+{
+  "name": "SocialMuse Content Generator",
+  "description": "A cross-platform social media content generator that uses Gemini to draft tailored posts and generate high-quality AI images for LinkedIn, Twitter, and Instagram.",
+  "requestFramePermissions": []
+}
