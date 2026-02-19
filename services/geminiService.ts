@@ -1,9 +1,8 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { CampaignData, CampaignResult, Platform, AspectRatio, ImageSize } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { CampaignData, CampaignResult, Platform } from "../types";
 
-const TEXT_MODEL = 'gemini-3-pro-preview';
-const IMAGE_MODEL = 'gemini-3-pro-image-preview';
+const TEXT_MODEL = 'gemini-3-flash-preview';
 
 export async function generateSocialCampaign(data: CampaignData): Promise<CampaignResult> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -17,7 +16,7 @@ export async function generateSocialCampaign(data: CampaignData): Promise<Campai
     - Twitter: Short (under 280 chars), punchy, engaging, includes tags.
     - Instagram: Visual-first, conversational but concise, heavy on hashtags.
     
-    For each platform, also provide a specific "visual prompt" for an AI image generator that captures the essence of the post.
+    Provide only the text content and hashtags for each platform.
   `;
 
   const prompt = `
@@ -38,28 +37,25 @@ export async function generateSocialCampaign(data: CampaignData): Promise<Campai
             type: Type.OBJECT,
             properties: {
               content: { type: Type.STRING },
-              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-              prompt: { type: Type.STRING, description: "Detailed prompt for image generation" }
+              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
-            required: ["content", "hashtags", "prompt"]
+            required: ["content", "hashtags"]
           },
           twitter: {
             type: Type.OBJECT,
             properties: {
               content: { type: Type.STRING },
-              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-              prompt: { type: Type.STRING, description: "Detailed prompt for image generation" }
+              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
-            required: ["content", "hashtags", "prompt"]
+            required: ["content", "hashtags"]
           },
           instagram: {
             type: Type.OBJECT,
             properties: {
               content: { type: Type.STRING },
-              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-              prompt: { type: Type.STRING, description: "Detailed prompt for image generation" }
+              hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
-            required: ["content", "hashtags", "prompt"]
+            required: ["content", "hashtags"]
           }
         },
         required: ["linkedIn", "twitter", "instagram"]
@@ -69,47 +65,19 @@ export async function generateSocialCampaign(data: CampaignData): Promise<Campai
 
   const parsed = JSON.parse(response.text);
   
-  const platforms: { id: Platform; ratio: AspectRatio; data: any }[] = [
-    { id: 'LinkedIn', ratio: '4:3', data: parsed.linkedIn },
-    { id: 'Twitter', ratio: '16:9', data: parsed.twitter },
-    { id: 'Instagram', ratio: '1:1', data: parsed.instagram }
+  const platforms: { id: Platform; data: any }[] = [
+    { id: 'LinkedIn', data: parsed.linkedIn },
+    { id: 'Twitter', data: parsed.twitter },
+    { id: 'Instagram', data: parsed.instagram }
   ];
 
   const results: CampaignResult = {
     posts: platforms.map(p => ({
       platform: p.id,
       content: p.data.content,
-      hashtags: p.data.hashtags,
-      suggestedPrompt: p.data.prompt,
-      aspectRatio: p.ratio
+      hashtags: p.data.hashtags
     }))
   };
 
   return results;
-}
-
-export async function generatePostImage(prompt: string, aspectRatio: AspectRatio, size: ImageSize): Promise<string> {
-  // Always create a new instance to ensure we pick up the latest selected key if changed
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: IMAGE_MODEL,
-    contents: {
-      parts: [{ text: prompt }]
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: aspectRatio,
-        imageSize: size
-      }
-    }
-  });
-
-  for (const part of response.candidates[0].content.parts) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-
-  throw new Error("No image data returned from Gemini");
 }
