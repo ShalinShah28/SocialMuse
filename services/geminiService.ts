@@ -1,10 +1,12 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { CampaignData, CampaignResult, Platform } from "../types";
+// Fixed: Imported SocialPost and CampaignData to correctly type the generation output
+import { CampaignData, SocialPost, Platform } from "../types";
 
 const TEXT_MODEL = 'gemini-3-flash-preview';
 
-export async function generateSocialCampaign(data: CampaignData): Promise<CampaignResult> {
+// Updated return type to specify the generated posts structure
+export async function generateSocialCampaign(data: CampaignData): Promise<{ posts: SocialPost[] }> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemInstruction = `
@@ -63,7 +65,11 @@ export async function generateSocialCampaign(data: CampaignData): Promise<Campai
     }
   });
 
-  const parsed = JSON.parse(response.text);
+  const text = response.text;
+  if (!text) {
+    throw new Error("Empty response from AI model");
+  }
+  const parsed = JSON.parse(text);
   
   const platforms: { id: Platform; data: any }[] = [
     { id: 'LinkedIn', data: parsed.linkedIn },
@@ -71,7 +77,9 @@ export async function generateSocialCampaign(data: CampaignData): Promise<Campai
     { id: 'Instagram', data: parsed.instagram }
   ];
 
-  const results: CampaignResult = {
+  // Fixed: Removed explicit CampaignResult type which was missing mandatory fields like id and timestamp
+  // The full CampaignResult is constructed in the calling component
+  const results = {
     posts: platforms.map(p => ({
       platform: p.id,
       content: p.data.content,
